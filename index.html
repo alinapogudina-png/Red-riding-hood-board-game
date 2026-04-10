@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Board Game Editor - ELT Workshop</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&display=swap');
+        body { font-family: 'Poppins', sans-serif; background-color: #3e2723; color: #efebe9; display: flex; padding: 20px; gap: 30px; height: 100vh; margin: 0; box-sizing: border-box; }
+        .editor-panel, .preview-panel { background-color: #4e342e; padding: 25px; border-radius: 15px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .editor-panel { width: 45%; display: flex; flex-direction: column; overflow-y: auto; }
+        .preview-panel { width: 55%; display: flex; flex-direction: column; position: relative; padding-bottom: 40px;}
+        
+        h1, h2 { color: #ffab00; font-weight: 700; letter-spacing: 1px; font-size: 28px; margin-top: 0; text-align: center; }
+        h3 { color: #ffd54f; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid #795548; padding-bottom: 5px; margin-top: 25px;}
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: #d7ccc8;}
+        input[type="text"], input[type="url"], select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #795548; background-color: #3e2723; color: #fff; box-sizing: border-box; font-family: 'Poppins', sans-serif; font-size: 13px; }
+        input[type="color"] { padding: 0; border: none; width: 40px; height: 30px; border-radius: 5px; cursor: pointer;}
+        input[type="range"] { width: 100%; accent-color: #ffab00; cursor: pointer; }
+        textarea { resize: vertical; min-height: 100px; white-space: pre; overflow-wrap: normal; overflow-x: auto;}
+        
+        .flex-row { display: flex; gap: 15px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+        .color-group { display: flex; align-items: center; background: #3e2723; padding: 5px 12px; border-radius: 8px; border: 1px solid #795548; gap: 10px; flex: 1; justify-content: center;}
+        
+        #previewFrame { width: 100%; flex: 1; border: 2px solid #795548; border-radius: 10px; background-color: #000; }
+        button.gen-btn { background: #ffab00; color: #3e2723; padding: 15px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 700; transition: 0.2s; letter-spacing: 1px;}
+        button.gen-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(255, 171, 0, 0.6); }
+        
+        #generated-code { height: 100px; margin-top: 10px; color: #a7d129; font-family: monospace; font-size: 11px;}
+        .copyright { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+    </style>
+</head>
+<body>
+
+    <div class="editor-panel">
+        <h1>Board Game Editor</h1>
+        
+        <div class="flex-row">
+            <div class="form-group" style="flex:1;">
+                <label>Язык</label>
+                <select id="uiLang" onchange="debounceGenerate()">
+                    <option value="EN">English</option>
+                    <option value="RU">Русский</option>
+                    <option value="ES">Español</option>
+                    <option value="FR">Français</option>
+                    <option value="DE">Deutsch</option>
+                    <option value="IT">Italiano</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+                <label>Макс. кубик</label>
+                <select id="maxDice" onchange="debounceGenerate()">
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex:2;">
+                <label>Заголовок игры</label>
+                <input type="text" id="gameTitle" value="INTO THE WOODS">
+            </div>
+        </div>
+
+        <h3>Оформление & Цвета</h3>
+        <div class="flex-row">
+            <div class="form-group" style="flex:1;">
+                <label>Шрифт</label>
+                <select id="fontFamily" onchange="debounceGenerate()">
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                    <option value="'Russo One', sans-serif">Russo One</option>
+                    <option value="'Caveat', cursive">Caveat</option>
+                    <option value="'Kurale', serif">Kurale</option>
+                    <option value="'Comfortaa', sans-serif">Comfortaa</option>
+                    <option value="'Amatic SC', cursive">Amatic SC</option>
+                    <option value="'Oswald', sans-serif">Oswald</option>
+                    <option value="'Playfair Display', serif">Playfair Display</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Размер: <span id="fSizeLbl">24</span>px</label>
+                <input type="range" id="fontSize" min="14" max="40" value="24" oninput="document.getElementById('fSizeLbl').innerText=this.value; debounceGenerate()">
+            </div>
+        </div>
+        <div class="flex-row">
+            <div class="color-group">
+                <label style="margin:0;">Фон рамки</label>
+                <input type="color" id="boardBg" value="#3e2723">
+            </div>
+            <div class="color-group">
+                <label style="margin:0;">Неон рамки</label>
+                <input type="color" id="boardNeon" value="#ffab00">
+            </div>
+            <div class="color-group">
+                <label style="margin:0;">Свечение заданий</label>
+                <input type="color" id="cellGlow" value="#ffab00">
+            </div>
+        </div>
+
+        <h3>Картинки и Тексты</h3>
+        <div class="form-group"><label>Фон (Background)</label><input type="url" id="imgBg" value="https://i.postimg.cc/ZY2Zy5pP/background.jpg"></div>
+        
+        <div class="flex-row">
+            <div class="form-group" style="flex:1;"><label>Фишка игрока</label><input type="url" id="imgToken" value="https://i.postimg.cc/FF8mJH3S/girl-2.png"></div>
+            <div class="form-group" style="flex:1;"><label>Босс (Клетка 23)</label><input type="url" id="imgBoss" value="https://i.postimg.cc/sfqyZg7S/wolf.png"></div>
+        </div>
+        
+        <div class="flex-row">
+            <div class="form-group" style="flex:1;"><label>Иконка Финиша (На поле)</label><input type="url" id="imgFinishIcon" value="https://i.postimg.cc/TPmW9tTP/91c68de4d7df818b1e28a2007835c8a3-fee63876-e1b8-4a69-b853-f25246d834a8-2.png"></div>
+            <div class="form-group" style="flex:1;"><label>Картинка Финиша (Экран)</label><input type="url" id="imgFinish" value="https://i.postimg.cc/kMz9tgKY/granny.png"></div>
+        </div>
+        
+        <div class="flex-row">
+            <div class="form-group" style="flex:1;"><label>Картинка Проигрыша</label><input type="url" id="imgLose" value="https://i.postimg.cc/7PdDTZ00/game-over.png"></div>
+            <div class="form-group" style="flex:1;"><label>Текст Проигрыша</label><input type="text" id="loseText" value="Game Over! The dinner is served!!"></div>
+        </div>
+        <div class="form-group"><label>Текст Победы (на финише)</label><input type="text" id="winText" value="You saved the Granny!"></div>
+
+        <h3>Задания (Назначаются строго по порядку на рандомные клетки)</h3>
+        <div class="form-group">
+            <label>Тип игры</label>
+            <select id="gameMode" onchange="toggleTaskInputs(); debounceGenerate()">
+                <option value="quiz">Quiz (Вопросы с вариантами)</option>
+                <option value="unscramble">Unscramble (Сборка предложения)</option>
+                <option value="fill">Fill in the blank (Вписать слово)</option>
+                <option value="discuss">Discussion (Только текст)</option>
+            </select>
+        </div>
+
+        <div id="input-quiz">
+            <div class="flex-row" style="align-items: flex-start;">
+                <div class="form-group" style="flex:1;"><label>ВОПРОСЫ</label><textarea id="qList">He ... playing now.
+They ... go to school.
+What ... your name?</textarea></div>
+                <div class="form-group" style="flex:1.5;"><label>ОТВЕТЫ (Прав | Неправ | Неправ)</label><textarea id="aList">is | are | am
+don't | doesn't | isn't
+is | are | am</textarea></div>
+            </div>
+        </div>
+        <div id="input-simple" style="display:none;">
+            <div class="form-group"><label>Предложения</label><textarea id="simpleList">I am a student.
+She likes reading books.
+We went to the park yesterday.</textarea></div>
+        </div>
+        <div id="input-fill" style="display:none;">
+            <div class="flex-row" style="align-items: flex-start;">
+                <div class="form-group" style="flex:1;"><label>ПРЕДЛОЖЕНИЯ С ПРОПУСКОМ</label><textarea id="fillQList">He ___ playing now.
+They ___ go to school.
+What ___ your name?</textarea></div>
+                <div class="form-group" style="flex:1;"><label>ПРАВИЛЬНЫЙ ОТВЕТ</label><textarea id="fillAList">is
+don't
+is</textarea></div>
+            </div>
+        </div>
+
+        <h3>Задание для Босса (Клетка 23)</h3>
+        <div class="flex-row">
+            <div class="form-group" style="flex:1;">
+                <label id="bossQLabel">Вопрос</label>
+                <textarea id="bossQ" rows="2">The Granny ... waiting for you!</textarea>
+            </div>
+            <div class="form-group" style="flex:1;" id="bossAGroup">
+                <label id="bossALabel">Ответы (Прав | Неправ)</label>
+                <textarea id="bossA" rows="2">is | are | am</textarea>
+            </div>
+        </div>
+        
+        <button class="gen-btn" id="copyBtn" onclick="copyCode()" style="width: 100%; margin-top:20px;">СГЕНЕРИРОВАТЬ И СКОПИРОВАТЬ</button>
+        <textarea id="generated-code" readonly placeholder="Здесь появится готовый код..."></textarea>
+    </div>
+
+    <div class="preview-panel">
+        <h2>Предпросмотр</h2>
+        <iframe id="previewFrame" src="" frameborder="0" allow="autoplay"></iframe>
+        <p class="copyright">©2026 Alina Pogudina @ELT_workshop</p>
+    </div>
+
+    <script>
+        function toggleTaskInputs() {
+            let mode = document.getElementById('gameMode').value;
+            document.getElementById('input-quiz').style.display = mode === 'quiz' ? 'block' : 'none';
+            document.getElementById('input-simple').style.display = (mode === 'unscramble' || mode === 'discuss') ? 'block' : 'none';
+            document.getElementById('input-fill').style.display = mode === 'fill' ? 'block' : 'none';
+
+            let bossAGroup = document.getElementById('bossAGroup');
+            let bossQLabel = document.getElementById('bossQLabel');
+            let bossALabel = document.getElementById('bossALabel');
+
+            if (mode === 'quiz') {
+                bossAGroup.style.display = 'block';
+                bossQLabel.innerText = 'Вопрос для Босса';
+                bossALabel.innerText = 'Ответы (Прав | Неправ)';
+            } else if (mode === 'fill') {
+                bossAGroup.style.display = 'block';
+                bossQLabel.innerText = 'Предложение с пропуском';
+                bossALabel.innerText = 'Правильный ответ';
+            } else if (mode === 'unscramble') {
+                bossAGroup.style.display = 'none';
+                bossQLabel.innerText = 'Предложение для Босса';
+            } else if (mode === 'discuss') {
+                bossAGroup.style.display = 'none';
+                bossQLabel.innerText = 'Вопрос / Тема';
+            }
+        }
+
+        function getInputs() {
+            let mode = document.getElementById('gameMode').value;
+            let tasks = [];
+
+            if(mode === 'quiz') {
+                let qLines = document.getElementById('qList').value.split('\n').map(s=>s.trim()).filter(s=>s);
+                let aLines = document.getElementById('aList').value.split('\n').map(s=>s.trim()).filter(s=>s);
+                let count = Math.min(qLines.length, aLines.length);
+                for(let i=0; i<count; i++) {
+                    let parts = aLines[i].split('|').map(s=>s.trim()).filter(s=>s);
+                    if(parts.length > 0) tasks.push({ q: qLines[i], c: parts[0], w: parts.slice(1) });
+                }
+            } else if (mode === 'fill') {
+                let qLines = document.getElementById('fillQList').value.split('\n').map(s=>s.trim()).filter(s=>s);
+                let aLines = document.getElementById('fillAList').value.split('\n').map(s=>s.trim()).filter(s=>s);
+                let count = Math.min(qLines.length, aLines.length);
+                for(let i=0; i<count; i++) tasks.push({ q: qLines[i], c: aLines[i] });
+            } else {
+                let lines = document.getElementById('simpleList').value.split('\n').map(s=>s.trim()).filter(s=>s);
+                lines.forEach(line => tasks.push({ q: line }));
+            }
+
+            if(tasks.length === 0) tasks = [{q: "No tasks configured!", c: "Ok", w: []}];
+
+            // СБОРКА ЗАДАНИЯ БОССА
+            let bQ = document.getElementById('bossQ').value.trim();
+            let bA = document.getElementById('bossA').value.trim();
+            let bossTask = {};
+
+            if (mode === 'quiz') {
+                let parts = bA.split('|').map(s=>s.trim()).filter(s=>s);
+                bossTask = { q: bQ || 'Boss Question?', c: parts[0] || 'Ok', w: parts.slice(1) };
+            } else if (mode === 'fill') {
+                bossTask = { q: bQ || 'Boss ___?', c: bA || 'Ok' };
+            } else {
+                bossTask = { q: bQ || 'Boss Sentence' };
+            }
+            
+            return {
+                lang: document.getElementById('uiLang').value,
+                maxDice: parseInt(document.getElementById('maxDice').value) || 3,
+                title: document.getElementById('gameTitle').value,
+                fontFamily: document.getElementById('fontFamily').value,
+                fontSize: document.getElementById('fontSize').value,
+                boardBg: document.getElementById('boardBg').value,
+                boardNeon: document.getElementById('boardNeon').value,
+                cellGlow: document.getElementById('cellGlow').value,
+                mode: mode,
+                tasks: tasks,
+                bossTask: bossTask,
+                imgBg: document.getElementById('imgBg').value,
+                imgToken: document.getElementById('imgToken').value,
+                imgBoss: document.getElementById('imgBoss').value,
+                imgFinishIcon: document.getElementById('imgFinishIcon').value,
+                imgFinish: document.getElementById('imgFinish').value,
+                imgLose: document.getElementById('imgLose').value,
+                loseText: document.getElementById('loseText').value,
+                winText: document.getElementById('winText').value
+            };
+        }
+
+        function generateCode() {
+            const conf = getInputs();
+
+            const safeHtmlCode = `<!DOCTYPE html>
+<html lang="${conf.lang.toLowerCase()}">
+<head>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=Bad+Script&family=Caveat:wght@700&family=Comfortaa:wght@700&family=Kurale&family=Montserrat:wght@700;800&family=Neucha&family=Oswald:wght@700&family=Pacifico&family=Playfair+Display:wght@700&family=Roboto:wght@700&family=Russo+One&display=swap');
+    
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Montserrat', sans-serif;}
+    * { box-sizing: border-box !important; }
+    
+    #elt-app { position: absolute; inset: 0; width: 100%; height: 100%; background: url('${conf.imgBg}') center/cover no-repeat; user-select: none; overflow: hidden; }
+    #elt-app:focus { outline: none; }
+
+    /* КНОПКА-КУБИК */
+    .elt-dice-btn { position: absolute; left: 30px; top: 50%; transform: translateY(-50%); width: 90px; height: 90px; background: rgba(255,255,255,0.9); border: 4px solid #333; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; z-index: 30; box-shadow: 0 10px 25px rgba(0,0,0,0.6), inset 0 -5px 0 #ccc; transition: 0.2s;}
+    .elt-dice-btn:active { transform: translateY(calc(-50% + 5px)); box-shadow: 0 5px 15px rgba(0,0,0,0.6), inset 0 -2px 0 #ccc; }
+    .elt-dice-num { font-size: 40px; font-weight: 800; color: #e50914; line-height: 1; margin-top: 5px;}
+    .elt-dice-lbl { font-size: 14px; font-weight: 800; color: #333; text-transform: uppercase; letter-spacing: 1px;}
+    .elt-dice-btn.disabled { filter: grayscale(1); pointer-events: none; opacity: 0.7;}
+
+    /* ИГРОВОЕ ПОЛЕ И ПУНКТИРНАЯ ЛИНИЯ */
+    #board-container { position: absolute; inset: 0; pointer-events: none; z-index: 5;}
+    .elt-path-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1;}
+    
+    /* 3D КЛЕТКИ (С БРОНЕЙ) */
+    .elt-cell { position: absolute; width: 48px !important; height: 48px !important; background: radial-gradient(circle at 30% 30%, #ffffff, #d7ccc8) !important; border: 4px solid #3e2723 !important; border-radius: 50% !important; transform: translate(-50%, -50%); box-shadow: inset -3px -3px 6px rgba(0,0,0,0.2), inset 3px 3px 6px rgba(255,255,255,1), 0 6px 12px rgba(0,0,0,0.6) !important; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #3e2723 !important; z-index: 2;}
+    .elt-cell.has-task { border-color: ${conf.cellGlow} !important; color: #000 !important; box-shadow: inset -3px -3px 6px rgba(0,0,0,0.2), inset 3px 3px 6px rgba(255,255,255,1), 0 0 20px ${conf.cellGlow}, inset 0 0 10px ${conf.cellGlow} !important;}
+    
+    /* СТАРТ */
+    .elt-cell-start { width: 90px !important; height: 90px !important; background: radial-gradient(circle at 30% 30%, #4ae38c, #2ecc71) !important; border: 5px solid #fff !important; box-shadow: inset -4px -4px 8px rgba(0,0,0,0.2), inset 4px 4px 8px rgba(255,255,255,0.6), 0 0 20px #2ecc71 !important; color: #fff !important; font-size: 20px; z-index: 3;}
+    
+    /* БОСС */
+    .elt-cell-boss { width: 65px !important; height: 65px !important; background: radial-gradient(circle at 30% 30%, #ff6b81, #ff4757) !important; border: 5px solid #fff !important; box-shadow: inset -4px -4px 8px rgba(0,0,0,0.2), inset 4px 4px 8px rgba(255,255,255,0.6), 0 0 25px #ff4757 !important; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;}
+    .elt-cell-boss .icon { font-size: 28px; }
+    .elt-cell-boss .txt { font-size: 11px; font-weight: 900; color: #fff !important; letter-spacing: 1px; margin-top: -2px;}
+    
+    /* БАБУШКА */
+    .elt-cell-finish { width: 140px !important; height: 140px !important; background-color: #ffffff !important; background-image: url('${conf.imgFinishIcon}') !important; background-size: cover !important; background-position: top center !important; background-repeat: no-repeat !important; border: 6px solid #ffd700 !important; box-shadow: inset -5px -5px 10px rgba(0,0,0,0.3), inset 5px 5px 10px rgba(255,255,255,0.8), 0 0 30px #ffd700 !important; border-radius: 50% !important; z-index: 3;}
+
+    /* ФИШКА ИГРОКА */
+    #elt-token { position: absolute; width: 100px; height: 140px; background: url('${conf.imgToken}') bottom center/contain no-repeat; transform: translate(-50%, -95%); transition: left 0.4s ease-in-out, top 0.4s ease-in-out, transform 0.2s; z-index: 10; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.6)); pointer-events: none;}
+
+    /* ПАНЕЛЬ ЗАДАНИЙ */
+    .elt-task-wrapper { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); width: 90vw !important; max-width: 700px !important; max-height: 90vh !important; overflow-y: auto; background: ${conf.boardBg} !important; border: 4px solid ${conf.boardNeon} !important; border-radius: 20px !important; box-shadow: 0 0 40px ${conf.boardNeon}, inset 0 0 20px rgba(0,0,0,0.8) !important; padding: 50px !important; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 40; align-items: center; box-sizing: border-box !important;}
+    .elt-task-wrapper::-webkit-scrollbar { display: none; }
+    .elt-task-wrapper.show { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+    
+    /* БОСС-РЕЖИМ */
+    .elt-task-wrapper.boss-mode { flex-direction: row; flex-wrap: wrap; max-width: 900px !important; justify-content: center; gap: 30px; border-color: #ff4757 !important; box-shadow: 0 0 60px #ff4757, inset 0 0 30px rgba(255,71,87,0.3) !important;}
+    .elt-task-left { flex: 1; min-width: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;}
+    .elt-task-right { display: none; width: 220px; height: 260px; background: url('${conf.imgBoss}') center/contain no-repeat; filter: drop-shadow(0 0 25px #ff4757);}
+    .elt-task-wrapper.boss-mode .elt-task-right { display: block; animation: bossFloat 3s infinite alternate;}
+    
+    /* ТЕКСТ БОССА */
+    #boss-title { display: none; color: #ff4757; text-shadow: 0 0 15px #ff4757, 0 0 5px #fff; font-size: 32px; font-weight: 900; text-transform: uppercase; margin-bottom: 25px; font-family: 'Montserrat', sans-serif; letter-spacing: 2px;}
+    @keyframes bossFloat { from { transform: translateY(0) scale(1); } to { transform: translateY(-10px) scale(1.05); } }
+
+    /* ОШИБКА ТРЯСКА */
+    @keyframes errorShake { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 20% { transform: translate(calc(-50% - 15px), -50%) scale(1); } 40% { transform: translate(calc(-50% + 15px), -50%) scale(1); } 60% { transform: translate(calc(-50% - 15px), -50%) scale(1); } 80% { transform: translate(calc(-50% + 15px), -50%) scale(1); } }
+    .elt-task-wrapper.error-state { animation: errorShake 0.5s ease-in-out !important; border-color: #ff4757 !important; box-shadow: 0 0 60px rgba(255, 71, 87, 0.9) !important; }
+
+    /* ВЗРЫВ */
+    @keyframes explodeBoard { 0% { transform: translate(-50%, -50%) scale(1); opacity: 1; filter: brightness(1); } 30% { transform: translate(-50%, -50%) scale(1.1); filter: brightness(1.5); border-color: #fff !important;} 100% { transform: translate(-50%, -50%) scale(0); opacity: 0; } }
+    .elt-task-wrapper.exploding { animation: explodeBoard 0.5s ease-out forwards !important; pointer-events: none !important; }
+    .elt-fragment { position: absolute; width: 10px; height: 10px; border-radius: 2px; pointer-events: none; z-index: 100; animation: fragmentFly 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+    @keyframes fragmentFly { 0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--rot)) scale(0); opacity: 0; } }
+
+    /* ВСПЛЫВАЮЩЕЕ УВЕДОМЛЕНИЕ */
+    #elt-toast { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #fff; padding: 15px 30px; border-radius: 30px; font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: bold; opacity: 0; pointer-events: none; transition: 0.4s; z-index: 100; border: 2px solid ${conf.boardNeon}; box-shadow: 0 5px 15px rgba(0,0,0,0.5); text-align: center;}
+    #elt-toast.show { opacity: 1; bottom: 50px; }
+
+    /* ЭЛЕМЕНТЫ ВНУТРИ ЗАДАНИЯ - ГАРАНТИЯ ОТСТУПОВ */
+    .elt-question { font-family: ${conf.fontFamily} !important; font-size: ${conf.fontSize}px !important; color: #fff !important; text-shadow: 2px 2px 4px rgba(0,0,0,0.8) !important; line-height: 1.5 !important; margin: 0 0 30px 0 !important; padding: 0 !important; text-align: center !important;}
+    .elt-ans-grid { display: flex; flex-wrap: wrap; gap: 15px !important; justify-content: center; width: 100%; margin-bottom: 10px !important;}
+    
+    .elt-btn-ans, .elt-btn-main { appearance: none !important; -webkit-appearance: none !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; text-transform: uppercase !important; letter-spacing: 1px !important; line-height: normal !important; text-align: center !important; text-decoration: none !important; box-sizing: border-box !important;}
+    .elt-btn-ans { background-color: rgba(255,255,255,0.1) !important; color: #ffffff !important; border: 2px solid rgba(255,255,255,0.5) !important; padding: 15px 30px !important; border-radius: 12px !important; font-family: ${conf.fontFamily} !important; font-size: calc(${conf.fontSize}px * 0.85) !important; cursor: pointer !important; transition: all 0.2s !important; box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;}
+    .elt-btn-ans:hover { background-color: ${conf.boardNeon} !important; color: #000 !important; transform: scale(1.05) !important; border-color: #fff !important; box-shadow: 0 0 20px ${conf.boardNeon} !important;}
+    
+    .elt-btn-main { background-color: ${conf.boardNeon} !important; color: #000 !important; font-family: 'Montserrat', sans-serif !important; font-weight: 800 !important; padding: 18px 50px !important; font-size: 20px !important; border: 3px solid #fff !important; border-radius: 12px !important; cursor: pointer !important; transition: all 0.2s !important; box-shadow: 0 0 15px ${conf.boardNeon}, 0 4px 10px rgba(0,0,0,0.6) !important; margin-top: 20px !important;}
+    .elt-btn-main:hover { background-color: #fff !important; color: ${conf.boardNeon} !important; transform: scale(1.05) !important; border-color: ${conf.boardNeon} !important;}
+
+    /* FILL & UNSCRAMBLE */
+    .elt-input-text { appearance: none !important; -webkit-appearance: none !important; width: 100% !important; max-width: 350px !important; padding: 18px 20px !important; font-family: 'Montserrat', sans-serif !important; font-size: 24px !important; font-weight: 700 !important; color: #fff !important; background: rgba(0,0,0,0.5) !important; border: 3px solid ${conf.boardNeon} !important; border-radius: 12px !important; text-align: center !important; margin-bottom: 20px !important; box-shadow: inset 0 0 15px rgba(0,0,0,0.8) !important; outline: none !important; transition: 0.3s !important;}
+    .elt-input-text:focus { box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 0 25px ${conf.boardNeon} !important; border-color: #fff !important; }
+
+    .elt-word-bank, .elt-word-target { display: flex !important; flex-wrap: wrap !important; gap: 12px !important; align-items: center !important; justify-content: center !important; width: 100%; min-height: 80px !important; padding: 20px !important; border: 2px dashed rgba(255,255,255,0.4) !important; border-radius: 12px !important; margin-bottom: 20px !important; box-sizing: border-box !important;}
+    .elt-word-target { border-color: ${conf.boardNeon} !important; background: rgba(255,255,255,0.05) !important;}
+    .elt-word { background: rgba(0,0,0,0.8) !important; color: #ffffff !important; padding: 12px 25px !important; margin: 5px !important; border-radius: 8px !important; font-family: 'Montserrat', sans-serif !important; font-size: 18px !important; font-weight: 700 !important; cursor: pointer !important; transition: 0.2s !important; user-select: none !important; border: 2px solid ${conf.boardNeon} !important; box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important; height: auto !important; line-height: normal !important; display: inline-block !important;}
+    .elt-word:hover { transform: translateY(-3px) !important; box-shadow: 0 0 15px ${conf.boardNeon} !important; background: ${conf.boardNeon} !important; color: #000 !important; border-color: #fff !important;}
+
+    /* БАЗОВЫЙ КЛАСС ДЛЯ ВСЕХ ЭКРАНОВ (ЗАЩИТА ОТ GENIALLY) */
+    .elt-screen { position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100% !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; padding: 20px !important; box-sizing: border-box !important; z-index: 1000 !important; transition: opacity 0.5s !important;}
+    
+    #screen-start { background: rgba(0,0,0,0.8) !important; backdrop-filter: blur(5px); }
+    #screen-win { background: radial-gradient(circle, #ffdf00 0%, #b8860b 100%) !important; overflow: hidden; }
+    #screen-over { background: rgba(0, 0, 0, 0.95) !important; }
+
+    .elt-hidden { display: none !important; opacity: 0 !important; pointer-events: none !important; visibility: hidden !important;}
+
+    /* ЭЛЕМЕНТЫ ЭКРАНОВ */
+    .elt-title-huge { background: ${conf.boardBg}; color: ${conf.boardNeon} !important; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: clamp(30px, 5vw, 60px); padding: 25px 50px !important; border-radius: 20px; border: 5px solid ${conf.boardNeon}; margin-bottom: 40px !important; box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 30px ${conf.boardNeon}; text-align: center; max-width: 95%; line-height: normal !important; text-transform: uppercase;}
+    .elt-btn-huge { appearance: none !important; background-color: ${conf.boardNeon} !important; color: #000 !important; font-family: 'Montserrat', sans-serif !important; font-weight: 900 !important; font-size: clamp(24px, 4vw, 40px) !important; padding: 20px 60px !important; border: 4px solid #fff !important; border-radius: 40px !important; cursor: pointer !important; transition: all 0.2s !important; box-shadow: 0 10px 20px rgba(0,0,0,0.8), 0 0 20px ${conf.boardNeon} !important; text-transform: uppercase !important;}
+    .elt-btn-huge:hover { transform: scale(1.1) !important; background-color: #fff !important; border-color: ${conf.boardNeon} !important;}
+
+    .elt-win-img { width: 300px; height: 300px; object-fit: contain; filter: drop-shadow(0 0 30px rgba(255,255,255,0.9)); animation: floatImg 3s ease-in-out infinite; z-index: 2; margin-bottom: 20px;}
+    .elt-win-text { background: rgba(0,0,0,0.8); color: #ffd700 !important; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: clamp(24px, 4vw, 50px); padding: 20px 40px !important; border-radius: 20px; border: 4px solid #ffd700; margin-bottom: 40px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; z-index: 2;}
+    
+    .elt-lose-img { width: 350px; height: 350px; object-fit: contain; margin-bottom: 25px; filter: drop-shadow(0 0 30px rgba(229,9,20,0.8)); animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .elt-lose-text { color: #ff4757 !important; font-weight: 900; font-size: clamp(30px, 6vw, 50px); margin-bottom: 30px; text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase; text-shadow: 0 0 20px rgba(255,71,87,0.5);}
+
+    @keyframes floatImg { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+    @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+    .elt-gold-spark { position: absolute; width: 6px; height: 6px; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #fff, 0 0 20px #ffd700, 0 0 30px #ff8c00; animation: sparkFade 1s linear forwards; pointer-events: none; z-index: 1;}
+    @keyframes sparkFade { 0% { transform: scale(0) translateY(0); opacity: 1; } 50% { transform: scale(1.5) translateY(-30px); opacity: 1; } 100% { transform: scale(0) translateY(-60px); opacity: 0; } }
+</style>
+</head>
+<body>
+
+<div id="elt-app" tabindex="0">
+    <div id="board-container"></div>
+    <div id="elt-token"></div>
+
+    <div class="elt-dice-btn" id="btn-dice">
+        <div class="elt-dice-lbl">ROLL</div>
+        <div class="elt-dice-num" id="dice-val">🎲</div>
+    </div>
+
+    <!-- ТОСТ-УВЕДОМЛЕНИЕ -->
+    <div id="elt-toast">I am tired, let's take a break.</div>
+
+    <!-- ПАНЕЛЬ ЗАДАНИЙ -->
+    <div class="elt-task-wrapper" id="board-task">
+        <div class="elt-task-left">
+            <div id="boss-title">BOSS CHALLENGE!</div>
+            <div class="elt-question" id="lbl-question">Question</div>
+            <div id="box-answers" style="width: 100%;"></div>
+        </div>
+        <div class="elt-task-right" id="boss-img"></div>
+    </div>
+
+    <!-- СТАРТОВЫЙ ЭКРАН -->
+    <div id="screen-start" class="elt-screen">
+        <div class="elt-title-huge">${conf.title}</div>
+        <button class="elt-btn-huge" id="btn-start">START</button>
+    </div>
+
+    <!-- ЭКРАН ПРОИГРЫША (GAME OVER) -->
+    <div id="screen-over" class="elt-screen elt-hidden">
+        <img src="${conf.imgLose}" class="elt-lose-img">
+        <div class="elt-lose-text">${conf.loseText}</div>
+        <button class="elt-btn-huge" id="btn-try" style="background: #ff4757 !important; border-color: #fff !important; box-shadow: 0 0 20px #ff4757 !important; font-size: 24px !important;">PLAY AGAIN</button>
+    </div>
+
+    <!-- ЭКРАН ПОБЕДЫ -->
+    <div id="screen-win" class="elt-screen elt-hidden">
+        <img src="${conf.imgFinish}" class="elt-win-img">
+        <div class="elt-win-text">${conf.winText}</div>
+        <button class="elt-btn-huge" id="btn-win-restart" style="position: relative; z-index: 10; font-size: 24px !important;">PLAY AGAIN</button>
+    </div>
+
+<script>
+(function(){
+    const diceAudio = new Audio('https://files.catbox.moe/xk6v0c.mp3');
+    diceAudio.volume = 0.7;
+
+    const dict = {
+        EN: { start: "START", check: "CHECK", next: "NEXT", unscramble: "Put the words in order:", playagain: "PLAY AGAIN", rest: "I am tired, let's take a break.", penalty: "Oh no! 5 steps back!" },
+        RU: { start: "ИГРАТЬ", check: "ПРОВЕРИТЬ", next: "ДАЛЕЕ", unscramble: "Соберите предложение:", playagain: "ИГРАТЬ ЕЩЕ", rest: "Фух, давай немного передохнем.", penalty: "Ой! На 5 шагов назад!" },
+        ES: { start: "JUGAR", check: "COMPROBAR", next: "SIGUIENTE", unscramble: "Ordena las palabras:", playagain: "JUGAR DE NUEVO", rest: "Estoy cansado, tomemos un descanso.", penalty: "¡Oh no! ¡5 pasos atrás!" },
+        FR: { start: "JOUER", check: "VÉRIFIER", next: "SUIVANT", unscramble: "Mettez les mots dans l'ordre:", playagain: "REJOUER", rest: "Je suis fatigué, faisons une pause.", penalty: "Oh non! 5 pas en arrière!" },
+        DE: { start: "START", check: "PRÜFEN", next: "WEITER", unscramble: "Bringen Sie die Wörter in die richtige Reihenfolge:", playagain: "NOCHMAL SPIELEN", rest: "Ich bin müde, lass uns eine Pause machen.", penalty: "Oh nein! 5 Schritte zurück!" },
+        IT: { start: "INIZIA", check: "CONTROLLA", next: "AVANTI", unscramble: "Metti le parole in ordine:", playagain: "GIOCA DI NUOVO", rest: "Sono stanco, facciamo una pausa.", penalty: "Oh no! 5 passi indietro!" }
+    };
+    const lang = dict['${conf.lang}'] || dict['EN'];
+    document.getElementById('btn-start').innerText = lang.start;
+    document.getElementById('btn-win-restart').innerText = lang.playagain;
+    document.getElementById('btn-try').innerText = lang.playagain;
+    const toastEl = document.getElementById('elt-toast');
+    toastEl.innerText = lang.rest;
+
+    const MODE = '${conf.mode}';
+    let ALL_TASKS = ${JSON.stringify(conf.tasks)};
+    let BOSS_TASK = ${JSON.stringify(conf.bossTask)};
+
+    const PATH = [
+        {x: 85, y: 85}, {x: 70, y: 85}, {x: 55, y: 85}, {x: 40, y: 85}, {x: 25, y: 85},
+        {x: 25, y: 70}, {x: 40, y: 70}, {x: 55, y: 70}, {x: 70, y: 70}, {x: 85, y: 70},
+        {x: 85, y: 55}, {x: 70, y: 55}, {x: 55, y: 55}, {x: 40, y: 55}, {x: 25, y: 55},
+        {x: 25, y: 40}, {x: 40, y: 40}, {x: 55, y: 40}, {x: 70, y: 40}, {x: 85, y: 40},
+        {x: 85, y: 25}, {x: 70, y: 25}, {x: 55, y: 25}, {x: 40, y: 25}, // Boss (23)
+        {x: 15, y: 15} // Granny (24)
+    ];
+
+    const game = {
+        isPlaying: false, isMoving: false, currentCell: 0,
+        cells: [], fwInterval: null, tokenFacingRight: false,
+        mistakesCount: 0,
+        
+        token: document.getElementById('elt-token'),
+        boardWrapper: document.getElementById('board-task'),
+        diceBtn: document.getElementById('btn-dice'),
+        diceNum: document.getElementById('dice-val'),
+        appArea: document.getElementById('elt-app'),
+        
+        init: function() {
+            document.getElementById('btn-start').addEventListener('click', () => this.startGame());
+            document.getElementById('btn-win-restart').addEventListener('click', () => this.startGame());
+            document.getElementById('btn-try').addEventListener('click', () => this.startGame());
+            this.diceBtn.addEventListener('click', () => this.rollDice());
+            
+            this.appArea.addEventListener('keydown', (e) => {
+                if(e.key === ' ' || e.code === 'Space') {
+                    if(e.target.tagName !== 'INPUT') { 
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                        this.rollDice(); 
+                    }
+                }
+            });
+
+            this.appArea.addEventListener('mousedown', (e) => {
+                if(e.target.tagName !== 'INPUT') this.appArea.focus();
+            });
+        },
+
+        startGame: function() {
+            this.appArea.focus();
+            document.getElementById('screen-start').classList.add('elt-hidden');
+            document.getElementById('screen-win').classList.add('elt-hidden');
+            document.getElementById('screen-over').classList.add('elt-hidden');
+            clearInterval(this.fwInterval);
+            toastEl.classList.remove('show');
+            
+            this.currentCell = 0;
+            this.isMoving = false;
+            this.tokenFacingRight = false;
+            this.mistakesCount = 0;
+            this.boardWrapper.classList.remove('show', 'error-state', 'exploding', 'boss-mode');
+            this.diceBtn.classList.remove('disabled');
+            this.diceNum.innerText = '🎲';
+            
+            this.generateBoard();
+            this.updateTokenPos(true);
+            this.isPlaying = true;
+        },
+
+        generateBoard: function() {
+            let container = document.getElementById('board-container');
+            container.innerHTML = '';
+            this.cells = [];
+            
+            let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("class", "elt-path-svg");
+            svg.setAttribute("viewBox", "0 0 100 100");
+            svg.setAttribute("preserveAspectRatio", "none");
+            let pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            
+            let d = \`M \${PATH[0].x} \${PATH[0].y} \`;
+            let radius = 4;
+            for(let i=1; i<PATH.length; i++) {
+                if(i === PATH.length - 1) {
+                    d += \`L \${PATH[i].x} \${PATH[i].y} \`;
+                } else {
+                    let prev = PATH[i-1], curr = PATH[i], next = PATH[i+1];
+                    let v1x = curr.x - prev.x, v1y = curr.y - prev.y;
+                    let v2x = next.x - curr.x, v2y = next.y - curr.y;
+                    let len1 = Math.hypot(v1x, v1y), len2 = Math.hypot(v2x, v2y);
+                    let n1x = v1x/len1, n1y = v1y/len1;
+                    let n2x = v2x/len2, n2y = v2y/len2;
+                    let ax = curr.x - n1x * radius, ay = curr.y - n1y * radius;
+                    let bx = curr.x + n2x * radius, by = curr.y + n2y * radius;
+                    d += \`L \${ax} \${ay} Q \${curr.x} \${curr.y} \${bx} \${by} \`;
+                }
+            }
+            
+            pathEl.setAttribute("d", d);
+            pathEl.setAttribute("fill", "none");
+            pathEl.setAttribute("stroke", "rgba(255,255,255,0.7)");
+            pathEl.setAttribute("stroke-width", "0.8");
+            pathEl.setAttribute("stroke-dasharray", "2, 2");
+            svg.appendChild(pathEl);
+            container.appendChild(svg);
+            
+            // РАСПРЕДЕЛЕНИЕ ЗАДАНИЙ: РАНДОМНЫЕ КЛЕТКИ, НО СТРОГИЙ ПОРЯДОК
+            let pool = ALL_TASKS;
+            let numTasks = Math.min(pool.length, 22);
+            let availableCells = [];
+            for(let i=1; i<=22; i++) availableCells.push(i);
+            
+            // Перемешиваем доступные номера клеток
+            availableCells.sort(() => Math.random() - 0.5);
+            // Берем нужное количество случайных клеток и СОРТИРУЕМ ИХ по возрастанию
+            let selectedCells = availableCells.slice(0, numTasks).sort((a, b) => a - b);
+            
+            // Создаем карту: номер клетки -> конкретное задание по порядку
+            let taskMap = {};
+            for(let i=0; i<numTasks; i++) {
+                taskMap[selectedCells[i]] = pool[i];
+            }
+
+            PATH.forEach((p, i) => {
+                let div = document.createElement('div');
+                div.className = 'elt-cell';
+                div.style.left = p.x + '%';
+                div.style.top = p.y + '%';
+                
+                let tsk = null;
+                if(i === 0) { 
+                    div.classList.add('elt-cell-start'); div.innerText = 'START'; 
+                } else if(i === 24) { 
+                    div.classList.add('elt-cell-finish'); 
+                } else if(i === 23) { 
+                    div.classList.add('elt-cell-boss'); 
+                    div.innerHTML = '<div class="icon">☠️</div><div class="txt">BOSS</div>'; 
+                    tsk = BOSS_TASK; 
+                } else {
+                    div.innerText = i;
+                    // Если эта клетка была выбрана для задания
+                    if(taskMap[i]) { 
+                        tsk = taskMap[i]; 
+                        div.classList.add('has-task'); 
+                    }
+                }
+                
+                this.cells.push({ x: p.x, y: p.y, task: tsk, done: false });
+                container.appendChild(div);
+            });
+        },
+
+        updateTokenPos: function(instant) {
+            let c = this.cells[this.currentCell];
+            
+            if (this.currentCell > 0) {
+                let prevX = this.cells[this.currentCell - 1].x;
+                if (c.x < prevX) this.tokenFacingRight = false;
+                if (c.x > prevX) this.tokenFacingRight = true;
+            }
+
+            this.token.style.transition = instant ? 'none' : 'left 0.4s ease-in-out, top 0.4s ease-in-out, transform 0.2s';
+            this.token.style.left = c.x + '%';
+            this.token.style.top = c.y + '%';
+            this.token.style.transform = \`translate(-50%, -95%) scaleX(\${this.tokenFacingRight ? 1 : -1})\`;
+        },
+
+        rollDice: function() {
+            if(!this.isPlaying || this.isMoving || this.boardWrapper.classList.contains('show')) return;
+            this.isMoving = true;
+            this.diceBtn.classList.add('disabled');
+            toastEl.classList.remove('show');
+            
+            diceAudio.currentTime = 0;
+            diceAudio.play().catch(e => console.log("Audio blocked", e));
+            
+            let rollCount = 0;
+            let finalVal = Math.floor(Math.random() * ${conf.maxDice}) + 1; // Бросок 1-max
+            
+            let rInt = setInterval(() => {
+                this.diceNum.innerText = Math.floor(Math.random() * ${conf.maxDice}) + 1; 
+                rollCount++;
+                if(rollCount > 10) {
+                    clearInterval(rInt);
+                    this.diceNum.innerText = finalVal;
+                    setTimeout(() => this.moveStepByStep(finalVal), 500);
+                }
+            }, 50);
+        },
+
+        moveStepByStep: function(stepsLeft) {
+            if(this.currentCell === 23) {
+                this.checkLandedCell();
+                return;
+            }
+            if(stepsLeft <= 0 || this.currentCell >= 24) {
+                this.checkLandedCell();
+                return;
+            }
+            this.currentCell++;
+            this.updateTokenPos(false);
+            
+            setTimeout(() => { this.moveStepByStep(stepsLeft - 1); }, 400);
+        },
+
+        moveBackwards: function(stepsLeft) {
+            if(stepsLeft <= 0 || this.currentCell <= 0) {
+                this.isMoving = false;
+                this.diceBtn.classList.remove('disabled');
+                return;
+            }
+            this.currentCell--;
+            this.updateTokenPos(false);
+            setTimeout(() => { this.moveBackwards(stepsLeft - 1); }, 300);
+        },
+
+        checkLandedCell: function() {
+            if(this.currentCell === 24) { this.win(); return; }
+            
+            let cellData = this.cells[this.currentCell];
+            // ИЗМЕНЕНИЕ: Убрано ограничение !cellData.done
+            // Теперь если игрок попадает на пройденную клетку, задание покажется заново!
+            if(cellData.task) { 
+                this.openTask(cellData.task, cellData, this.currentCell === 23);
+            } else {
+                if(this.currentCell !== 0) {
+                    toastEl.innerText = lang.rest;
+                    toastEl.classList.add('show');
+                    setTimeout(()=> toastEl.classList.remove('show'), 2500);
+                }
+                this.isMoving = false;
+                this.diceBtn.classList.remove('disabled');
+            }
+        },
+
+        openTask: function(task, cellData, isBoss) {
+            this.mistakesCount = 0; 
+            this.boardWrapper.classList.remove('error-state', 'boss-mode');
+            document.getElementById('boss-title').style.display = isBoss ? 'block' : 'none';
+            
+            if(isBoss) this.boardWrapper.classList.add('boss-mode');
+            this.boardWrapper.classList.add('show');
+            
+            let ansBox = document.getElementById('box-answers');
+            ansBox.innerHTML = '';
+
+            if(MODE === 'discuss') {
+                document.getElementById('lbl-question').innerText = task.q;
+                let btn = document.createElement('button');
+                btn.className = 'elt-btn-main'; btn.innerText = lang.next;
+                btn.onclick = () => this.taskSuccess(cellData);
+                ansBox.appendChild(btn);
+            } 
+            else if(MODE === 'quiz') {
+                document.getElementById('lbl-question').innerText = task.q;
+                let ansGrid = document.createElement('div'); ansGrid.className = 'elt-ans-grid';
+                let opts = [{t: task.c, corr: true}];
+                if (task.w && task.w.length > 0) {
+                    task.w.forEach(w => opts.push({t: w, corr: false}));
+                }
+                opts.sort(() => Math.random() - 0.5);
+                opts.forEach(opt => {
+                    let btn = document.createElement('button'); btn.className = 'elt-btn-ans'; btn.innerText = opt.t;
+                    btn.onclick = () => { if(opt.corr) this.taskSuccess(cellData); else this.taskFail(isBoss); };
+                    ansGrid.appendChild(btn);
+                });
+                ansBox.appendChild(ansGrid);
+            }
+            else if(MODE === 'fill') {
+                document.getElementById('lbl-question').innerText = task.q;
+                let inp = document.createElement('input');
+                inp.type = 'text'; inp.className = 'elt-input-text'; inp.autocomplete = 'off'; inp.spellcheck = false;
+                let btn = document.createElement('button'); btn.className = 'elt-btn-main'; btn.innerText = lang.check;
+                
+                const checkAns = () => {
+                    if(inp.value.trim().toLowerCase() === task.c.trim().toLowerCase()) this.taskSuccess(cellData);
+                    else { this.taskFail(isBoss); setTimeout(()=>inp.focus(), 500); }
+                };
+                btn.onclick = checkAns;
+                inp.onkeydown = (e) => { if(e.key === 'Enter') checkAns(); };
+                
+                ansBox.appendChild(inp); ansBox.appendChild(document.createElement('br')); ansBox.appendChild(btn);
+                setTimeout(() => inp.focus(), 300);
+            }
+            else if(MODE === 'unscramble') {
+                document.getElementById('lbl-question').innerText = lang.unscramble;
+                let words = task.q.split(' ').sort(() => Math.random() - 0.5);
+                let bank = document.createElement('div'); bank.className = 'elt-word-bank';
+                let target = document.createElement('div'); target.className = 'elt-word-target';
+                let btn = document.createElement('button'); btn.className = 'elt-btn-main'; btn.innerText = lang.check; btn.style.display = "none";
+
+                const upd = () => { btn.style.display = (bank.children.length === 0) ? "inline-flex" : "none"; };
+
+                words.forEach(w => {
+                    let wEl = document.createElement('div'); wEl.className = 'elt-word'; wEl.innerText = w;
+                    wEl.onclick = () => { if(wEl.parentElement === bank) target.appendChild(wEl); else bank.appendChild(wEl); upd(); };
+                    bank.appendChild(wEl);
+                });
+
+                btn.onclick = () => {
+                    let ans = Array.from(target.children).map(el => el.innerText).join(' ');
+                    if(ans === task.q) this.taskSuccess(cellData);
+                    else { this.taskFail(isBoss); setTimeout(() => { while(target.firstChild) bank.appendChild(target.firstChild); upd(); }, 400); }
+                };
+                ansBox.appendChild(target); ansBox.appendChild(bank); ansBox.appendChild(btn);
+            }
+        },
+
+        createShatterEffect: function() {
+            let cx = this.boardWrapper.offsetLeft + this.boardWrapper.offsetWidth / 2;
+            let cy = this.boardWrapper.offsetTop + this.boardWrapper.offsetHeight / 2;
+            let colors = ['${conf.boardNeon}', '#fff', '#1a1a1a'];
+            for(let i=0; i<30; i++) {
+                let p = document.createElement('div'); p.className = 'elt-fragment';
+                let angle = (Math.random() * 360) * Math.PI / 180; let dist = 80 + Math.random() * 250; 
+                p.style.setProperty('--tx', (Math.cos(angle) * dist) + 'px'); p.style.setProperty('--ty', (Math.sin(angle) * dist) + 'px'); p.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
+                p.style.left = cx + 'px'; p.style.top = cy + 'px'; p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                p.style.width = (5 + Math.random() * 15) + 'px'; p.style.height = p.style.width;
+                this.appArea.appendChild(p);
+                setTimeout(() => p.remove(), 800);
+            }
+        },
+
+        taskSuccess: function(cellData) {
+            this.boardWrapper.classList.add('exploding');
+            this.createShatterEffect();
+            cellData.done = true;
+            
+            setTimeout(() => {
+                this.boardWrapper.classList.remove('show', 'exploding', 'boss-mode');
+                this.appArea.focus();
+                
+                if(this.currentCell === 23) {
+                    this.currentCell = 24;
+                    this.updateTokenPos(false);
+                    setTimeout(() => this.win(), 600);
+                } else {
+                    this.isMoving = false;
+                    this.diceBtn.classList.remove('disabled');
+                }
+            }, 600);
+        },
+
+        taskFail: function(isBoss) {
+            this.mistakesCount++;
+            
+            if (this.mistakesCount >= 2) {
+                if (isBoss) {
+                    this.boardWrapper.classList.remove('show');
+                    setTimeout(() => document.getElementById('screen-over').classList.remove('elt-hidden'), 500);
+                } else {
+                    this.boardWrapper.classList.remove('show');
+                    toastEl.innerText = lang.penalty;
+                    toastEl.classList.add('show');
+                    setTimeout(() => toastEl.classList.remove('show'), 2500);
+                    setTimeout(() => this.moveBackwards(5), 500);
+                }
+                return;
+            }
+
+            this.boardWrapper.classList.remove('error-state');
+            void this.boardWrapper.offsetWidth; 
+            this.boardWrapper.classList.add('error-state');
+            setTimeout(() => { this.boardWrapper.classList.remove('error-state'); }, 500);
+        },
+
+        win: function() {
+            this.isPlaying = false;
+            document.getElementById('screen-win').classList.remove('elt-hidden');
+            let winScreen = document.getElementById('screen-win');
+            this.fwInterval = setInterval(() => {
+                let spark = document.createElement('div'); spark.className = 'elt-gold-spark';
+                spark.style.left = (10 + Math.random() * 80) + '%'; spark.style.top = (10 + Math.random() * 80) + '%';
+                winScreen.appendChild(spark);
+                setTimeout(() => spark.remove(), 1000);
+            }, 100);
+        }
+    };
+
+    window.game = game; 
+    game.init();
+})();
+<\/script>
+</div>
+</body>
+</html>`;
+            document.getElementById('generated-code').value = safeHtmlCode;
+            document.getElementById('previewFrame').srcdoc = safeHtmlCode;
+        }
+
+        function copyCode() {
+            generateCode(); 
+            const codeArea = document.getElementById('generated-code');
+            codeArea.select();
+            document.execCommand('copy');
+            const btn = document.getElementById('copyBtn');
+            btn.innerText = 'СКОПИРОВАНО!';
+            btn.style.background = '#2ecc71';
+            setTimeout(() => { 
+                btn.innerText = 'СГЕНЕРИРОВАТЬ И СКОПИРОВАТЬ'; 
+                btn.style.background = '#ffab00';
+            }, 2000);
+        }
+
+        let previewTimeout;
+        function debounceGenerate() {
+            clearTimeout(previewTimeout);
+            previewTimeout = setTimeout(generateCode, 800);
+        }
+
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener('input', debounceGenerate);
+            el.addEventListener('change', debounceGenerate);
+        });
+
+        toggleTaskInputs();
+        debounceGenerate();
+    </script>
+</body>
+</html>
