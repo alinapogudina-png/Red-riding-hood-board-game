@@ -103,8 +103,11 @@
         <h3>Картинки и Тексты</h3>
         <div class="form-group"><label>Фон (Background)</label><input type="url" id="imgBg" value="https://i.postimg.cc/ZY2Zy5pP/background.jpg"></div>
         
-        <div class="flex-row">
-            <div class="form-group" style="flex:1;"><label>Фишка игрока</label><input type="url" id="imgToken" value="https://i.postimg.cc/FF8mJH3S/girl-2.png"></div>
+        <div class="flex-row" style="align-items: flex-start;">
+            <div class="form-group" style="flex:1;">
+                <label>Фишки игроков (от 1 до 4, с новой строки)</label>
+                <textarea id="imgTokens" rows="4">https://i.postimg.cc/FF8mJH3S/girl-2.png</textarea>
+            </div>
             <div class="form-group" style="flex:1;"><label>Босс (Клетка 23)</label><input type="url" id="imgBoss" value="https://i.postimg.cc/sfqyZg7S/wolf.png"></div>
         </div>
         
@@ -243,6 +246,9 @@ is</textarea></div>
             } else {
                 bossTask = { q: bQ || 'Boss Sentence' };
             }
+
+            let tokensRaw = document.getElementById('imgTokens').value.split('\n').map(s=>s.trim()).filter(s=>s);
+            if(tokensRaw.length === 0) tokensRaw = ["https://i.postimg.cc/FF8mJH3S/girl-2.png"];
             
             return {
                 lang: document.getElementById('uiLang').value,
@@ -257,7 +263,7 @@ is</textarea></div>
                 tasks: tasks,
                 bossTask: bossTask,
                 imgBg: document.getElementById('imgBg').value,
-                imgToken: document.getElementById('imgToken').value,
+                imgTokens: tokensRaw.slice(0, 4),
                 imgBoss: document.getElementById('imgBoss').value,
                 imgFinishIcon: document.getElementById('imgFinishIcon').value,
                 imgFinish: document.getElementById('imgFinish').value,
@@ -282,18 +288,42 @@ is</textarea></div>
     #elt-app { position: absolute; inset: 0; width: 100%; height: 100%; background: url('${conf.imgBg}') center/cover no-repeat; user-select: none; overflow: hidden; }
     #elt-app:focus { outline: none; }
 
-    /* КНОПКА-КУБИК */
+    /* КНОПКА-КУБИК И ИНДИКАТОР ХОДА */
     .elt-dice-btn { position: absolute; left: 30px; top: 50%; transform: translateY(-50%); width: 90px; height: 90px; background: rgba(255,255,255,0.9); border: 4px solid #333; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; z-index: 30; box-shadow: 0 10px 25px rgba(0,0,0,0.6), inset 0 -5px 0 #ccc; transition: 0.2s;}
     .elt-dice-btn:active { transform: translateY(calc(-50% + 5px)); box-shadow: 0 5px 15px rgba(0,0,0,0.6), inset 0 -2px 0 #ccc; }
     .elt-dice-num { font-size: 40px; font-weight: 800; color: #e50914; line-height: 1; margin-top: 5px;}
     .elt-dice-lbl { font-size: 14px; font-weight: 800; color: #333; text-transform: uppercase; letter-spacing: 1px;}
     .elt-dice-btn.disabled { filter: grayscale(1); pointer-events: none; opacity: 0.7;}
+    
+    /* ЖЕСТКАЯ ЗАЩИТА ТАБЛИЧКИ ИГРОКА ДЛЯ GENIALLY */
+    .turn-lbl { 
+        position: absolute !important; 
+        top: -40px !important; 
+        left: 50% !important; 
+        transform: translateX(-50%) !important; 
+        background: ${conf.boardNeon} !important; 
+        color: #000 !important; 
+        padding: 6px 14px !important; 
+        border-radius: 14px !important; 
+        font-family: 'Montserrat', sans-serif !important; 
+        font-size: 13px !important; 
+        font-weight: 900 !important; 
+        border: 2px solid #fff !important; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important; 
+        white-space: nowrap !important; 
+        text-transform: uppercase !important; 
+        transition: 0.3s !important; 
+        box-sizing: border-box !important; 
+        line-height: 1.2 !important; 
+        letter-spacing: 0.5px !important;
+        display: inline-block !important;
+    }
 
     /* ИГРОВОЕ ПОЛЕ И ПУНКТИРНАЯ ЛИНИЯ */
     #board-container { position: absolute; inset: 0; pointer-events: none; z-index: 5;}
     .elt-path-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1;}
     
-    /* 3D КЛЕТКИ (С БРОНЕЙ) */
+    /* 3D КЛЕТКИ */
     .elt-cell { position: absolute; width: 48px !important; height: 48px !important; background: radial-gradient(circle at 30% 30%, #ffffff, #d7ccc8) !important; border: 4px solid #3e2723 !important; border-radius: 50% !important; transform: translate(-50%, -50%); box-shadow: inset -3px -3px 6px rgba(0,0,0,0.2), inset 3px 3px 6px rgba(255,255,255,1), 0 6px 12px rgba(0,0,0,0.6) !important; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #3e2723 !important; z-index: 2;}
     .elt-cell.has-task { border-color: ${conf.cellGlow} !important; color: #000 !important; box-shadow: inset -3px -3px 6px rgba(0,0,0,0.2), inset 3px 3px 6px rgba(255,255,255,1), 0 0 20px ${conf.cellGlow}, inset 0 0 10px ${conf.cellGlow} !important;}
     
@@ -308,8 +338,12 @@ is</textarea></div>
     /* БАБУШКА */
     .elt-cell-finish { width: 140px !important; height: 140px !important; background-color: #ffffff !important; background-image: url('${conf.imgFinishIcon}') !important; background-size: cover !important; background-position: top center !important; background-repeat: no-repeat !important; border: 6px solid #ffd700 !important; box-shadow: inset -5px -5px 10px rgba(0,0,0,0.3), inset 5px 5px 10px rgba(255,255,255,0.8), 0 0 30px #ffd700 !important; border-radius: 50% !important; z-index: 3;}
 
-    /* ФИШКА ИГРОКА */
-    #elt-token { position: absolute; width: 100px; height: 140px; background: url('${conf.imgToken}') bottom center/contain no-repeat; transform: translate(-50%, -95%); transition: left 0.4s ease-in-out, top 0.4s ease-in-out, transform 0.2s; z-index: 10; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.6)); pointer-events: none;}
+    /* ФИШКИ ИГРОКОВ */
+    .elt-token-player { position: absolute; width: 80px; height: 110px; background-size: contain; background-position: bottom center; background-repeat: no-repeat; transition: left 0.4s ease-in-out, top 0.4s ease-in-out, transform 0.2s, margin 0.3s; z-index: 10; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.6)); pointer-events: none;}
+
+    /* ВСПЛЫВАЮЩИЙ ТЕКСТ (HEY / OOPS) */
+    .elt-fly-text { position: absolute !important; font-family: 'Montserrat', sans-serif !important; font-weight: 900 !important; font-size: 28px !important; color: #fff !important; text-transform: uppercase !important; text-shadow: 0 0 10px var(--neon), 0 0 20px var(--neon) !important; pointer-events: none !important; z-index: 200 !important; animation: flyUpAnim 2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important; line-height: 1 !important;}
+    @keyframes flyUpAnim { 0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; } 20% { transform: translate(-50%, -30px) scale(1.2); opacity: 1; } 80% { transform: translate(-50%, -50px) scale(1); opacity: 1; } 100% { transform: translate(-50%, -70px) scale(0); opacity: 0; } }
 
     /* ПАНЕЛЬ ЗАДАНИЙ */
     .elt-task-wrapper { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); width: 90vw !important; max-width: 700px !important; max-height: 90vh !important; overflow-y: auto; background: ${conf.boardBg} !important; border: 4px solid ${conf.boardNeon} !important; border-radius: 20px !important; box-shadow: 0 0 40px ${conf.boardNeon}, inset 0 0 20px rgba(0,0,0,0.8) !important; padding: 50px !important; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 40; align-items: center; box-sizing: border-box !important;}
@@ -360,7 +394,7 @@ is</textarea></div>
     .elt-word { background: rgba(0,0,0,0.8) !important; color: #ffffff !important; padding: 12px 25px !important; margin: 5px !important; border-radius: 8px !important; font-family: 'Montserrat', sans-serif !important; font-size: 18px !important; font-weight: 700 !important; cursor: pointer !important; transition: 0.2s !important; user-select: none !important; border: 2px solid ${conf.boardNeon} !important; box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important; height: auto !important; line-height: normal !important; display: inline-block !important;}
     .elt-word:hover { transform: translateY(-3px) !important; box-shadow: 0 0 15px ${conf.boardNeon} !important; background: ${conf.boardNeon} !important; color: #000 !important; border-color: #fff !important;}
 
-    /* БАЗОВЫЙ КЛАСС ДЛЯ ВСЕХ ЭКРАНОВ (ЗАЩИТА ОТ GENIALLY) */
+    /* БАЗОВЫЙ КЛАСС ДЛЯ ВСЕХ ЭКРАНОВ */
     .elt-screen { position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100% !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; padding: 20px !important; box-sizing: border-box !important; z-index: 1000 !important; transition: opacity 0.5s !important;}
     
     #screen-start { background: rgba(0,0,0,0.8) !important; backdrop-filter: blur(5px); }
@@ -390,9 +424,10 @@ is</textarea></div>
 
 <div id="elt-app" tabindex="0">
     <div id="board-container"></div>
-    <div id="elt-token"></div>
+    <div id="tokens-container"></div>
 
     <div class="elt-dice-btn" id="btn-dice">
+        <div class="turn-lbl" id="turn-indicator">PLAYER 1</div>
         <div class="elt-dice-lbl">ROLL</div>
         <div class="elt-dice-num" id="dice-val">🎲</div>
     </div>
@@ -436,12 +471,12 @@ is</textarea></div>
     diceAudio.volume = 0.7;
 
     const dict = {
-        EN: { start: "START", check: "CHECK", next: "NEXT", unscramble: "Put the words in order:", playagain: "PLAY AGAIN", rest: "I am tired, let's take a break.", penalty: "Oh no! 5 steps back!" },
-        RU: { start: "ИГРАТЬ", check: "ПРОВЕРИТЬ", next: "ДАЛЕЕ", unscramble: "Соберите предложение:", playagain: "ИГРАТЬ ЕЩЕ", rest: "Фух, давай немного передохнем.", penalty: "Ой! На 5 шагов назад!" },
-        ES: { start: "JUGAR", check: "COMPROBAR", next: "SIGUIENTE", unscramble: "Ordena las palabras:", playagain: "JUGAR DE NUEVO", rest: "Estoy cansado, tomemos un descanso.", penalty: "¡Oh no! ¡5 pasos atrás!" },
-        FR: { start: "JOUER", check: "VÉRIFIER", next: "SUIVANT", unscramble: "Mettez les mots dans l'ordre:", playagain: "REJOUER", rest: "Je suis fatigué, faisons une pause.", penalty: "Oh non! 5 pas en arrière!" },
-        DE: { start: "START", check: "PRÜFEN", next: "WEITER", unscramble: "Bringen Sie die Wörter in die richtige Reihenfolge:", playagain: "NOCHMAL SPIELEN", rest: "Ich bin müde, lass uns eine Pause machen.", penalty: "Oh nein! 5 Schritte zurück!" },
-        IT: { start: "INIZIA", check: "CONTROLLA", next: "AVANTI", unscramble: "Metti le parole in ordine:", playagain: "GIOCA DI NUOVO", rest: "Sono stanco, facciamo una pausa.", penalty: "Oh no! 5 passi indietro!" }
+        EN: { start: "START", check: "CHECK", next: "NEXT", unscramble: "Put the words in order:", playagain: "PLAY AGAIN", rest: "I am tired, let's take a break.", penalty: "Oh no! 5 steps back!", player: "PLAYER", hey: "Hey!", oops: "Oops!" },
+        RU: { start: "ИГРАТЬ", check: "ПРОВЕРИТЬ", next: "ДАЛЕЕ", unscramble: "Соберите предложение:", playagain: "ИГРАТЬ ЕЩЕ", rest: "Фух, давай немного передохнем.", penalty: "Ой! На 5 шагов назад!", player: "ИГРОК", hey: "Привет!", oops: "Упс!" },
+        ES: { start: "JUGAR", check: "COMPROBAR", next: "SIGUIENTE", unscramble: "Ordena las palabras:", playagain: "JUGAR DE NUEVO", rest: "Estoy cansado, tomemos un descanso.", penalty: "¡Oh no! ¡5 pasos atrás!", player: "JUGADOR", hey: "¡Hola!", oops: "¡Uy!" },
+        FR: { start: "JOUER", check: "VÉRIFIER", next: "SUIVANT", unscramble: "Mettez les mots dans l'ordre:", playagain: "REJOUER", rest: "Je suis fatigué, faisons une pause.", penalty: "Oh non! 5 pas en arrière!", player: "JOUEUR", hey: "Salut!", oops: "Oups!" },
+        DE: { start: "START", check: "PRÜFEN", next: "WEITER", unscramble: "Bringen Sie die Wörter in die richtige Reihenfolge:", playagain: "NOCHMAL SPIELEN", rest: "Ich bin müde, lass uns eine Pause machen.", penalty: "Oh nein! 5 Schritte zurück!", player: "SPIELER", hey: "Hallo!", oops: "Hoppla!" },
+        IT: { start: "INIZIA", check: "CONTROLLA", next: "AVANTI", unscramble: "Metti le parole in ordine:", playagain: "GIOCA DI NUOVO", rest: "Sono stanco, facciamo una pausa.", penalty: "Oh no! 5 passi indietro!", player: "GIOCATORE", hey: "Ehi!", oops: "Ops!" }
     };
     const lang = dict['${conf.lang}'] || dict['EN'];
     document.getElementById('btn-start').innerText = lang.start;
@@ -453,6 +488,7 @@ is</textarea></div>
     const MODE = '${conf.mode}';
     let ALL_TASKS = ${JSON.stringify(conf.tasks)};
     let BOSS_TASK = ${JSON.stringify(conf.bossTask)};
+    let TOKEN_URLS = ${JSON.stringify(conf.imgTokens)};
 
     const PATH = [
         {x: 85, y: 85}, {x: 70, y: 85}, {x: 55, y: 85}, {x: 40, y: 85}, {x: 25, y: 85},
@@ -464,15 +500,15 @@ is</textarea></div>
     ];
 
     const game = {
-        isPlaying: false, isMoving: false, currentCell: 0,
-        cells: [], fwInterval: null, tokenFacingRight: false,
-        mistakesCount: 0,
+        isPlaying: false, isMoving: false, cells: [], fwInterval: null, mistakesCount: 0,
+        players: [], currentPlayerIndex: 0,
         
-        token: document.getElementById('elt-token'),
         boardWrapper: document.getElementById('board-task'),
         diceBtn: document.getElementById('btn-dice'),
         diceNum: document.getElementById('dice-val'),
+        turnInd: document.getElementById('turn-indicator'),
         appArea: document.getElementById('elt-app'),
+        tokensContainer: document.getElementById('tokens-container'),
         
         init: function() {
             document.getElementById('btn-start').addEventListener('click', () => this.startGame());
@@ -503,17 +539,48 @@ is</textarea></div>
             clearInterval(this.fwInterval);
             toastEl.classList.remove('show');
             
-            this.currentCell = 0;
             this.isMoving = false;
-            this.tokenFacingRight = false;
             this.mistakesCount = 0;
+            this.currentPlayerIndex = 0;
             this.boardWrapper.classList.remove('show', 'error-state', 'exploding', 'boss-mode');
             this.diceBtn.classList.remove('disabled');
             this.diceNum.innerText = '🎲';
             
             this.generateBoard();
-            this.updateTokenPos(true);
+            this.createPlayers();
+            this.updateTurnLabel();
+            this.updateAllTokensPos(true);
+            
+            if (this.players.length === 1) {
+                this.turnInd.style.display = 'none';
+            } else {
+                this.turnInd.style.display = 'inline-block';
+            }
+            
             this.isPlaying = true;
+        },
+
+        createPlayers: function() {
+            this.tokensContainer.innerHTML = '';
+            this.players = TOKEN_URLS.map((url, i) => {
+                let el = document.createElement('div');
+                el.className = 'elt-token-player';
+                el.style.backgroundImage = \`url('\${url}')\`;
+                this.tokensContainer.appendChild(el);
+                return { id: i, cell: 0, facingRight: false, el: el };
+            });
+        },
+
+        updateTurnLabel: function() {
+            this.turnInd.innerText = lang.player + " " + (this.currentPlayerIndex + 1);
+        },
+
+        nextTurn: function() {
+            this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+            this.updateTurnLabel();
+            this.isMoving = false;
+            this.diceBtn.classList.remove('disabled');
+            this.updateAllTokensPos(false);
         },
 
         generateBoard: function() {
@@ -553,18 +620,14 @@ is</textarea></div>
             svg.appendChild(pathEl);
             container.appendChild(svg);
             
-            // РАСПРЕДЕЛЕНИЕ ЗАДАНИЙ: РАНДОМНЫЕ КЛЕТКИ, НО СТРОГИЙ ПОРЯДОК
             let pool = ALL_TASKS;
             let numTasks = Math.min(pool.length, 22);
             let availableCells = [];
             for(let i=1; i<=22; i++) availableCells.push(i);
             
-            // Перемешиваем доступные номера клеток
             availableCells.sort(() => Math.random() - 0.5);
-            // Берем нужное количество случайных клеток и СОРТИРУЕМ ИХ по возрастанию
             let selectedCells = availableCells.slice(0, numTasks).sort((a, b) => a - b);
             
-            // Создаем карту: номер клетки -> конкретное задание по порядку
             let taskMap = {};
             for(let i=0; i<numTasks; i++) {
                 taskMap[selectedCells[i]] = pool[i];
@@ -587,31 +650,58 @@ is</textarea></div>
                     tsk = BOSS_TASK; 
                 } else {
                     div.innerText = i;
-                    // Если эта клетка была выбрана для задания
                     if(taskMap[i]) { 
                         tsk = taskMap[i]; 
                         div.classList.add('has-task'); 
                     }
                 }
                 
-                this.cells.push({ x: p.x, y: p.y, task: tsk, done: false });
+                this.cells.push({ x: p.x, y: p.y, task: tsk });
                 container.appendChild(div);
             });
         },
 
-        updateTokenPos: function(instant) {
-            let c = this.cells[this.currentCell];
-            
-            if (this.currentCell > 0) {
-                let prevX = this.cells[this.currentCell - 1].x;
-                if (c.x < prevX) this.tokenFacingRight = false;
-                if (c.x > prevX) this.tokenFacingRight = true;
-            }
+        updateAllTokensPos: function(instant) {
+            let cellGroups = {};
+            this.players.forEach(p => {
+                if(!cellGroups[p.cell]) cellGroups[p.cell] = [];
+                cellGroups[p.cell].push(p);
+            });
 
-            this.token.style.transition = instant ? 'none' : 'left 0.4s ease-in-out, top 0.4s ease-in-out, transform 0.2s';
-            this.token.style.left = c.x + '%';
-            this.token.style.top = c.y + '%';
-            this.token.style.transform = \`translate(-50%, -95%) scaleX(\${this.tokenFacingRight ? 1 : -1})\`;
+            this.players.forEach(p => {
+                let c = this.cells[p.cell];
+                let group = cellGroups[p.cell];
+                let idx = group.indexOf(p);
+                let total = group.length;
+
+                let offsetX = 0;
+                let offsetY = 0;
+                if(total > 1) {
+                    offsetX = (idx - (total - 1) / 2) * 25; 
+                    offsetY = (idx % 2 === 0 ? 0 : 10);     
+                }
+
+                p.el.style.transition = instant ? 'none' : 'left 0.4s ease-in-out, top 0.4s ease-in-out, transform 0.2s';
+                p.el.style.left = \`calc(\${c.x}% + \${offsetX}px)\`;
+                p.el.style.top = \`calc(\${c.y}% + \${offsetY}px)\`;
+                p.el.style.transform = \`translate(-50%, -95%) scaleX(\${p.facingRight ? 1 : -1})\`;
+                
+                p.el.style.zIndex = (this.currentPlayerIndex === p.id) ? 20 : 10;
+                p.el.style.filter = (this.currentPlayerIndex === p.id) ? 'drop-shadow(0 5px 15px rgba(255,255,255,0.4)) brightness(1.1)' : 'drop-shadow(0 5px 10px rgba(0,0,0,0.8)) brightness(0.7)';
+            });
+        },
+        
+        showFloatingText: function(text, color) {
+            let p = this.players[this.currentPlayerIndex];
+            let c = this.cells[p.cell];
+            let el = document.createElement('div');
+            el.className = 'elt-fly-text';
+            el.innerText = text;
+            el.style.left = c.x + '%';
+            el.style.top = (c.y - 10) + '%';
+            el.style.setProperty('--neon', color);
+            this.appArea.appendChild(el);
+            setTimeout(() => el.remove(), 2000);
         },
 
         rollDice: function() {
@@ -624,7 +714,7 @@ is</textarea></div>
             diceAudio.play().catch(e => console.log("Audio blocked", e));
             
             let rollCount = 0;
-            let finalVal = Math.floor(Math.random() * ${conf.maxDice}) + 1; // Бросок 1-max
+            let finalVal = Math.floor(Math.random() * ${conf.maxDice}) + 1;
             
             let rInt = setInterval(() => {
                 this.diceNum.innerText = Math.floor(Math.random() * ${conf.maxDice}) + 1; 
@@ -638,47 +728,73 @@ is</textarea></div>
         },
 
         moveStepByStep: function(stepsLeft) {
-            if(this.currentCell === 23) {
-                this.checkLandedCell();
-                return;
-            }
-            if(stepsLeft <= 0 || this.currentCell >= 24) {
-                this.checkLandedCell();
-                return;
-            }
-            this.currentCell++;
-            this.updateTokenPos(false);
+            let p = this.players[this.currentPlayerIndex];
             
+            if(p.cell === 23) {
+                this.checkLandedCell();
+                return;
+            }
+            if(stepsLeft <= 0 || p.cell >= 24) {
+                this.checkLandedCell();
+                return;
+            }
+            
+            let prevX = this.cells[p.cell].x;
+            p.cell++;
+            let newX = this.cells[p.cell].x;
+            
+            if(newX > prevX) p.facingRight = true;
+            if(newX < prevX) p.facingRight = false;
+            
+            this.updateAllTokensPos(false);
             setTimeout(() => { this.moveStepByStep(stepsLeft - 1); }, 400);
         },
 
         moveBackwards: function(stepsLeft) {
-            if(stepsLeft <= 0 || this.currentCell <= 0) {
-                this.isMoving = false;
-                this.diceBtn.classList.remove('disabled');
+            let p = this.players[this.currentPlayerIndex];
+            if(stepsLeft <= 0 || p.cell <= 0) {
+                this.nextTurn();
                 return;
             }
-            this.currentCell--;
-            this.updateTokenPos(false);
+            
+            let prevX = this.cells[p.cell].x;
+            p.cell--;
+            let newX = this.cells[p.cell].x;
+            
+            if(newX > prevX) p.facingRight = true;
+            if(newX < prevX) p.facingRight = false;
+            
+            this.updateAllTokensPos(false);
             setTimeout(() => { this.moveBackwards(stepsLeft - 1); }, 300);
         },
 
         checkLandedCell: function() {
-            if(this.currentCell === 24) { this.win(); return; }
+            let p = this.players[this.currentPlayerIndex];
             
-            let cellData = this.cells[this.currentCell];
-            // ИЗМЕНЕНИЕ: Убрано ограничение !cellData.done
-            // Теперь если игрок попадает на пройденную клетку, задание покажется заново!
+            if (p.cell !== 0 && p.cell !== 24) {
+                let mates = this.players.filter(other => other.id !== p.id && other.cell === p.cell);
+                if (mates.length > 0) {
+                    this.showFloatingText(lang.hey, "${conf.boardNeon}");
+                }
+            }
+
+            if(p.cell === 24) { this.win(); return; }
+            
+            let cellData = this.cells[p.cell];
+            
             if(cellData.task) { 
-                this.openTask(cellData.task, cellData, this.currentCell === 23);
+                this.openTask(cellData.task, cellData, p.cell === 23);
             } else {
-                if(this.currentCell !== 0) {
+                if(p.cell !== 0) {
                     toastEl.innerText = lang.rest;
                     toastEl.classList.add('show');
-                    setTimeout(()=> toastEl.classList.remove('show'), 2500);
+                    setTimeout(()=> { 
+                        toastEl.classList.remove('show');
+                        this.nextTurn(); 
+                    }, 2000);
+                } else {
+                    this.nextTurn();
                 }
-                this.isMoving = false;
-                this.diceBtn.classList.remove('disabled');
             }
         },
 
@@ -771,21 +887,20 @@ is</textarea></div>
         },
 
         taskSuccess: function(cellData) {
+            let p = this.players[this.currentPlayerIndex];
             this.boardWrapper.classList.add('exploding');
             this.createShatterEffect();
-            cellData.done = true;
             
             setTimeout(() => {
                 this.boardWrapper.classList.remove('show', 'exploding', 'boss-mode');
                 this.appArea.focus();
                 
-                if(this.currentCell === 23) {
-                    this.currentCell = 24;
-                    this.updateTokenPos(false);
+                if(p.cell === 23) {
+                    p.cell = 24;
+                    this.updateAllTokensPos(false);
                     setTimeout(() => this.win(), 600);
                 } else {
-                    this.isMoving = false;
-                    this.diceBtn.classList.remove('disabled');
+                    this.nextTurn();
                 }
             }, 600);
         },
@@ -794,15 +909,16 @@ is</textarea></div>
             this.mistakesCount++;
             
             if (this.mistakesCount >= 2) {
+                this.boardWrapper.classList.remove('show');
+                
                 if (isBoss) {
-                    this.boardWrapper.classList.remove('show');
                     setTimeout(() => document.getElementById('screen-over').classList.remove('elt-hidden'), 500);
                 } else {
-                    this.boardWrapper.classList.remove('show');
+                    this.showFloatingText(lang.oops, "#ff4757");
                     toastEl.innerText = lang.penalty;
                     toastEl.classList.add('show');
                     setTimeout(() => toastEl.classList.remove('show'), 2500);
-                    setTimeout(() => this.moveBackwards(5), 500);
+                    setTimeout(() => this.moveBackwards(5), 600);
                 }
                 return;
             }
