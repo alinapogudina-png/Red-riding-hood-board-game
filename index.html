@@ -120,11 +120,21 @@
             <div class="form-group" style="flex:1;"><label>Картинка Проигрыша</label><input type="url" id="imgLose" value="https://i.postimg.cc/7PdDTZ00/game-over.png"></div>
             <div class="form-group" style="flex:1;"><label>Текст Проигрыша</label><input type="text" id="loseText" value="Game Over! The dinner is served!!"></div>
         </div>
-        <div class="form-group"><label>Текст Победы (на финише)</label><input type="text" id="winText" value="You saved the Granny!"></div>
+        
+        <div class="flex-row">
+            <div class="form-group" style="flex: 3;">
+                <label>Текст Победы (на финише)</label>
+                <input type="text" id="winText" value="You saved the Granny!">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Цвет фидбека</label>
+                <input type="color" id="winColor" value="#ffd700" style="width: 100%;">
+            </div>
+        </div>
 
         <h3>Задания (Назначаются строго по порядку на рандомные клетки)</h3>
         <div class="form-group">
-            <label>Тип игры</label>
+            <label>Тип игры на поле</label>
             <select id="gameMode" onchange="toggleTaskInputs(); debounceGenerate()">
                 <option value="quiz">Quiz (Вопросы с вариантами)</option>
                 <option value="unscramble">Unscramble (Сборка предложения)</option>
@@ -160,6 +170,16 @@ is</textarea></div>
         </div>
 
         <h3>Задание для Босса (Клетка 23)</h3>
+        <div class="form-group">
+            <label>Тип задания для Босса</label>
+            <select id="bossMode" onchange="toggleBossInputs(); debounceGenerate()">
+                <option value="quiz">Quiz (Вопросы с вариантами)</option>
+                <option value="unscramble">Unscramble (Сборка предложения)</option>
+                <option value="fill">Fill in the blank (Вписать слово)</option>
+                <option value="discuss">Discussion (Только текст)</option>
+            </select>
+        </div>
+
         <div class="flex-row">
             <div class="form-group" style="flex:1;">
                 <label id="bossQLabel">Вопрос</label>
@@ -187,23 +207,26 @@ is</textarea></div>
             document.getElementById('input-quiz').style.display = mode === 'quiz' ? 'block' : 'none';
             document.getElementById('input-simple').style.display = (mode === 'unscramble' || mode === 'discuss') ? 'block' : 'none';
             document.getElementById('input-fill').style.display = mode === 'fill' ? 'block' : 'none';
+        }
 
+        function toggleBossInputs() {
+            let bossMode = document.getElementById('bossMode').value;
             let bossAGroup = document.getElementById('bossAGroup');
             let bossQLabel = document.getElementById('bossQLabel');
             let bossALabel = document.getElementById('bossALabel');
 
-            if (mode === 'quiz') {
+            if (bossMode === 'quiz') {
                 bossAGroup.style.display = 'block';
                 bossQLabel.innerText = 'Вопрос для Босса';
                 bossALabel.innerText = 'Ответы (Прав | Неправ)';
-            } else if (mode === 'fill') {
+            } else if (bossMode === 'fill') {
                 bossAGroup.style.display = 'block';
                 bossQLabel.innerText = 'Предложение с пропуском';
                 bossALabel.innerText = 'Правильный ответ';
-            } else if (mode === 'unscramble') {
+            } else if (bossMode === 'unscramble') {
                 bossAGroup.style.display = 'none';
                 bossQLabel.innerText = 'Предложение для Босса';
-            } else if (mode === 'discuss') {
+            } else if (bossMode === 'discuss') {
                 bossAGroup.style.display = 'none';
                 bossQLabel.innerText = 'Вопрос / Тема';
             }
@@ -211,8 +234,10 @@ is</textarea></div>
 
         function getInputs() {
             let mode = document.getElementById('gameMode').value;
+            let bossMode = document.getElementById('bossMode').value;
             let tasks = [];
 
+            // СБОРКА ОСНОВНЫХ ЗАДАНИЙ
             if(mode === 'quiz') {
                 let qLines = document.getElementById('qList').value.split('\n').map(s=>s.trim()).filter(s=>s);
                 let aLines = document.getElementById('aList').value.split('\n').map(s=>s.trim()).filter(s=>s);
@@ -238,10 +263,10 @@ is</textarea></div>
             let bA = document.getElementById('bossA').value.trim();
             let bossTask = {};
 
-            if (mode === 'quiz') {
+            if (bossMode === 'quiz') {
                 let parts = bA.split('|').map(s=>s.trim()).filter(s=>s);
                 bossTask = { q: bQ || 'Boss Question?', c: parts[0] || 'Ok', w: parts.slice(1) };
-            } else if (mode === 'fill') {
+            } else if (bossMode === 'fill') {
                 bossTask = { q: bQ || 'Boss ___?', c: bA || 'Ok' };
             } else {
                 bossTask = { q: bQ || 'Boss Sentence' };
@@ -260,6 +285,7 @@ is</textarea></div>
                 boardNeon: document.getElementById('boardNeon').value,
                 cellGlow: document.getElementById('cellGlow').value,
                 mode: mode,
+                bossMode: bossMode,
                 tasks: tasks,
                 bossTask: bossTask,
                 imgBg: document.getElementById('imgBg').value,
@@ -269,7 +295,8 @@ is</textarea></div>
                 imgFinish: document.getElementById('imgFinish').value,
                 imgLose: document.getElementById('imgLose').value,
                 loseText: document.getElementById('loseText').value,
-                winText: document.getElementById('winText').value
+                winText: document.getElementById('winText').value,
+                winColor: document.getElementById('winColor').value
             };
         }
 
@@ -409,7 +436,7 @@ is</textarea></div>
     .elt-btn-huge:hover { transform: scale(1.1) !important; background-color: #fff !important; border-color: ${conf.boardNeon} !important;}
 
     .elt-win-img { width: 300px; height: 300px; object-fit: contain; filter: drop-shadow(0 0 30px rgba(255,255,255,0.9)); animation: floatImg 3s ease-in-out infinite; z-index: 2; margin-bottom: 20px;}
-    .elt-win-text { background: rgba(0,0,0,0.8); color: #ffd700 !important; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: clamp(24px, 4vw, 50px); padding: 20px 40px !important; border-radius: 20px; border: 4px solid #ffd700; margin-bottom: 40px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; z-index: 2;}
+    .elt-win-text { background: rgba(0,0,0,0.8); color: ${conf.winColor} !important; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: clamp(24px, 4vw, 50px); padding: 20px 40px !important; border-radius: 20px; border: 4px solid ${conf.winColor}; margin-bottom: 40px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; z-index: 2;}
     
     .elt-lose-img { width: 350px; height: 350px; object-fit: contain; margin-bottom: 25px; filter: drop-shadow(0 0 30px rgba(229,9,20,0.8)); animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     .elt-lose-text { color: #ff4757 !important; font-weight: 900; font-size: clamp(30px, 6vw, 50px); margin-bottom: 30px; text-align: center; font-family: 'Montserrat', sans-serif; text-transform: uppercase; text-shadow: 0 0 20px rgba(255,71,87,0.5);}
@@ -486,6 +513,7 @@ is</textarea></div>
     toastEl.innerText = lang.rest;
 
     const MODE = '${conf.mode}';
+    const BOSS_MODE = '${conf.bossMode}';
     let ALL_TASKS = ${JSON.stringify(conf.tasks)};
     let BOSS_TASK = ${JSON.stringify(conf.bossTask)};
     let TOKEN_URLS = ${JSON.stringify(conf.imgTokens)};
@@ -808,15 +836,17 @@ is</textarea></div>
             
             let ansBox = document.getElementById('box-answers');
             ansBox.innerHTML = '';
+            
+            let currentMode = isBoss ? BOSS_MODE : MODE;
 
-            if(MODE === 'discuss') {
+            if(currentMode === 'discuss') {
                 document.getElementById('lbl-question').innerText = task.q;
                 let btn = document.createElement('button');
                 btn.className = 'elt-btn-main'; btn.innerText = lang.next;
                 btn.onclick = () => this.taskSuccess(cellData);
                 ansBox.appendChild(btn);
             } 
-            else if(MODE === 'quiz') {
+            else if(currentMode === 'quiz') {
                 document.getElementById('lbl-question').innerText = task.q;
                 let ansGrid = document.createElement('div'); ansGrid.className = 'elt-ans-grid';
                 let opts = [{t: task.c, corr: true}];
@@ -831,7 +861,7 @@ is</textarea></div>
                 });
                 ansBox.appendChild(ansGrid);
             }
-            else if(MODE === 'fill') {
+            else if(currentMode === 'fill') {
                 document.getElementById('lbl-question').innerText = task.q;
                 let inp = document.createElement('input');
                 inp.type = 'text'; inp.className = 'elt-input-text'; inp.autocomplete = 'off'; inp.spellcheck = false;
@@ -847,7 +877,7 @@ is</textarea></div>
                 ansBox.appendChild(inp); ansBox.appendChild(document.createElement('br')); ansBox.appendChild(btn);
                 setTimeout(() => inp.focus(), 300);
             }
-            else if(MODE === 'unscramble') {
+            else if(currentMode === 'unscramble') {
                 document.getElementById('lbl-question').innerText = lang.unscramble;
                 let words = task.q.split(' ').sort(() => Math.random() - 0.5);
                 let bank = document.createElement('div'); bank.className = 'elt-word-bank';
@@ -979,6 +1009,7 @@ is</textarea></div>
         });
 
         toggleTaskInputs();
+        toggleBossInputs();
         debounceGenerate();
     </script>
 </body>
